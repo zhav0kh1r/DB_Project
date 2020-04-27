@@ -1,0 +1,35 @@
+DECLARE
+    v_stud1 VARCHAR(40);
+    v_date1 DATE;
+
+    v_stud2 VARCHAR(40);
+    v_date2 DATE;
+    
+    CURSOR lazy_student IS
+        SELECT student_id, reg_date FROM course_selection
+            WHERE reg_date IS NOT NULL
+            ORDER BY student_id, reg_date;
+BEGIN
+    v_stud1 := '';
+    v_date1 := TO_DATE('01-01-0001 00:00:00');
+    OPEN lazy_student;
+    LOOP
+    FETCH lazy_student INTO v_stud2, v_date2;
+        EXIT WHEN lazy_student%NOTFOUND;
+        IF(v_stud1 = v_stud2)
+            THEN 
+                IF( (TO_CHAR(TO_DATE(v_date1), 'MM')=5 or TO_CHAR(TO_DATE(v_date1), 'MM')=6) AND ((TO_CHAR(TO_DATE(v_date2), 'J') - TO_CHAR(TO_DATE(v_date1), 'J')) > 180)
+                OR (TO_CHAR(TO_DATE(v_date1), 'MM')=9 or TO_CHAR(TO_DATE(v_date1), 'MM')=8) AND ((TO_CHAR(TO_DATE(v_date2), 'J') - TO_CHAR(TO_DATE(v_date1), 'J')) > 260)
+                OR TO_CHAR(TO_DATE(v_date1), 'MM')=1 AND ((TO_CHAR(TO_DATE(v_date2), 'J') - TO_CHAR(TO_DATE(v_date1), 'J')) > 260))
+                    THEN DBMS_OUTPUT.PUT_LINE(v_stud2);
+                END IF;
+        END IF;    
+        v_stud1:=v_stud2;
+        v_date1:=v_date2;
+    END LOOP;
+    CLOSE lazy_student;
+END;
+
+select * from course_selection
+where student_id = '96846E26DCEE79A7E263CEC8B08A0217FCE9B1E4'
+order by reg_date;
