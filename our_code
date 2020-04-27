@@ -1,3 +1,263 @@
+--Project
+---------------------------------------------------------------
+
+-- Table description.
+
+
+-- Table: Course_schedule
+-- DERS_KOD – course code (code of subject)
+-- YEAR – year when subject was conducted
+-- TERM – 1 – Fall, 2-Spring
+-- DERS_S_ID –
+-- SECTION –
+-- MIN(START_TIME) – time of subject on week by schedule
+
+
+-- Table: Course_sections
+-- DERS_SOBE_ID –
+-- DERS_KOD – course code (code of subject)
+-- YEAR – year when subject was conducted
+-- TERM – 1 – Fall, 2-Spring
+-- SECTION –
+-- TYPE – N,L – lection P- practice
+-- EMP_ID – id teacher, instructor
+-- MESSAGE – comment
+-- WEEK_NUM – how many weeks
+-- HOUR_NUM – how many hours for semester
+-- PACKET_DERS – skip
+-- ATTEND_TYPE – skip
+-- PAID_SECTION – skip
+-- EMP_ID_ENT – id teacher, instructor who can inter marks
+-- LAST_MODIFIED – last marks modified time
+-- Credits – number of credits
+-- Table: Course_selections
+-- STUD_ID – id student
+-- DERS_KOD – course code (code of subject)
+-- YEAR – year
+-- TERM - 1 – Fall, 2-Spring
+-- SECTION – section
+-- LAB_SOBE_ID - skip
+-- QIYMET_YUZ – total mark of the course
+-- QIYMET_HERF - total mark of the course
+-- GRADING_TYPE – PNP –pass no pass, N - standart
+-- ATTENDED -skip
+-- PRACTICE – practice teacher
+-- REG_DATE – registration time
+
+
+-- Issues
+-- 1. Find most popular courses for semester (You should pass a number of
+-- semester and year, and output list of courses with teachers )
+-- 2. Find most popular teacher in section for semester (You should pass a
+-- number of semester and year and code of subject, and output teacher
+-- practice and lecture ) For example Programming technology lecture
+-- instructors: Instructor1, Instructor2. Practice instructors : Teacher1,teacher2,
+-- teacher3
+-- 3. Calculate GPA of student for the semester and total
+-- 4. Find students who didn’t register any subjects for one semester
+-- 5. Calculate how much money the student spent on retakes for the given
+-- semester (included) and total spent.
+-- 6. Calculate the teachers’ “loading” (how many hours Teacher have for given
+-- semester)
+-- 7. Design schedule of teacher on semester
+-- 8. Design schedule of student on semester
+-- 9. Display how many subjects and credits was selected by student
+-- 10. Find most clever flow of students by the average rating for the one subject in
+-- one teacher.
+-- 11. Teachers rating for the semester(list)
+-- 12. Subject ratings for the semester (list)
+-- 13. Calculate total number of retakes for all time and display the profit.
+
+
+-- Conditions:
+-- For getting good mark for the project, you must include frontEnd, and have all
+-- structures of PL/SQL, which we have studied:
+
+
+--  Functions,
+--  Procedures,
+--  Cursors,
+--  Packages,
+--  Transactions,
+--  triggers,
+--  Collections,
+--  records,
+--  Dynamic SQL
+--  etc.
+-- Warning:
+
+
+-- If the logical part will be similar to some other student it will be cheating because I
+-- especially do not describe all issues in detail for your free-thinking and
+-- implementation.
+
+
+---------------------------------------------------------------------------
+SET SERVEROUTPUT ON;
+---------------------------------------------------------------------------
+--CREATING TABLES
+CREATE TABLE course_schedule(
+ders_code VARCHAR(7),
+year_of NUMBER,
+term_of NUMBER,
+ders_sobe_id NUMBER,
+section VARCHAR(2),
+start_time DATE);
+
+CREATE TABLE course_sections(
+ders_sobe_id NUMBER,
+ders_code VARCHAR(7),
+year_of NUMBER,
+term_of NUMBER,
+section VARCHAR(2),
+type_of VARCHAR(1),
+emp_id NUMBER,
+message VARCHAR(1000),
+week_num NUMBER,
+hour_num NUMBER,
+emp_id_ent NUMBER,
+credits NUMBER);
+
+CREATE TABLE course_selection(
+student_id VARCHAR(40),
+ders_code VARCHAR(7),
+year_of NUMBER,
+term_of NUMBER,
+section VARCHAR(2),
+qiymet_yuz NUMBER,
+qiymet_harf VARCHAR(2),
+grading_type VARCHAR(3),
+practice NUMBER,
+reg_date DATE);
+
+---------------------------------------------------------------
+--Some updates and changes
+
+UPDATE course_sections
+	SET credits = 3
+	WHERE credits IS NULL;
+
+--------------------------
+
+
+
+---------------------------------------------------------------
+
+
+--1
+---------------------------------------------------------------
+DECLARE
+    v_ders_code VARCHAR(7);
+    v_count NUMBER;
+    v_day NUMBER;
+    v_ratio NUMBER;
+
+    CURSOR cur_popular_courses(
+        p_year NUMBER,
+        p_term NUMBER) IS
+            select ders_code, count(student_id), max(reg_date) - min(reg_date), count(student_id)/(max(reg_date) - min(reg_date)+1) as ratio FROM course_selection
+            WHERE year_of = p_year and term_of = p_term
+            GROUP BY ders_code
+            ORDER BY ratio DESC;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('||| DERS CODE ||| Students ||| Days to register ||| Ratio |||');
+    OPEN cur_popular_courses(2018, 1);
+    LOOP
+    FETCH cur_popular_courses INTO v_ders_code, v_count, v_day, v_ratio;
+        EXIT WHEN cur_popular_courses%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('|||  '||v_ders_code||'  |||    '||v_count||'   |||        '||v_day||'        |||'||v_ratio);
+    END LOOP;
+    CLOSE cur_popular_courses;
+END;
+
+--2
+---------------------------------------------------------------
+SET SERVEROUTPUT ON;
+DECLARE
+    v_teacher_code NUMBER;
+    v_count NUMBER;
+    v_day NUMBER;
+    v_ratio NUMBER;
+
+    CURSOR cur_popular_teachers(
+        p_year NUMBER,
+        p_term NUMBER) IS            
+            SELECT b.emp_id, count(a.student_id), max(reg_date) - min(reg_date), count(student_id)/(max(reg_date) - min(reg_date)+1) as ratio
+            FROM course_selection a
+            INNER JOIN course_sections b ON b.ders_code = a.ders_code
+                AND a.year_of = b.year_of
+                AND a.term_of = b.term_of
+                AND a.section = b.section
+            WHERE a.year_of = p_year AND a.term_of = p_term
+            GROUP BY b.emp_id
+            ORDER BY ratio DESC;
+            
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('||| TEACHER ID ||| Students ||| Days to register ||| Ratio |||');
+    OPEN cur_popular_teachers(2018, 1);
+    LOOP
+    FETCH cur_popular_teachers INTO v_teacher_code, v_count, v_day, v_ratio;
+        EXIT WHEN cur_popular_teachers%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('|||    '||v_teacher_code||'   |||   '||v_count||'   |||        '||v_day||'        |||   '||v_ratio);
+    END LOOP;
+    CLOSE cur_popular_teachers;
+END;
+
+--3
+---------------------------------------------------------------
+CREATE TABLE gpa_grade(
+grade NUMBER,
+point NUMBER);
+
+CREATE OR REPLACE FUNCTION gpa_on_sem(
+    p_student_id IN course_selection.student_id%TYPE,
+    p_year IN course_selection.year_of%TYPE,
+    p_term IN course_selection.term_of%TYPE) RETURN NUMBER
+    IS
+        v_var NUMBER;    
+    BEGIN
+        SELECT SUM(b.point * c.credits) / SUM(c.credits) INTO v_var FROM course_selection a
+            INNER JOIN gpa_grade b ON a.qiymet_yuz = b.grade
+            INNER JOIN course_sections c ON a.ders_code = c.ders_code
+                AND a.year_of = c.year_of
+                AND a.term_of = c.term_of
+                AND a.section = c.section
+            WHERE a.student_id = p_student_id
+                AND a.year_of = p_year
+                AND a.term_of = p_term;
+    RETURN v_var;    
+END gpa_on_sem; 
+
+
+CREATE OR REPLACE FUNCTION total_gpa(
+    p_student_id IN course_selection.student_id%TYPE) RETURN NUMBER
+    IS
+        v_var NUMBER;    
+    BEGIN
+        SELECT SUM(b.point * c.credits) / SUM(c.credits) INTO v_var FROM course_selection a
+            INNER JOIN gpa_grade b ON a.qiymet_yuz = b.grade
+            INNER JOIN course_sections c ON a.ders_code = c.ders_code
+                AND a.year_of = c.year_of
+                AND a.term_of = c.term_of
+                AND a.section = c.section
+            WHERE a.student_id = p_student_id;
+    RETURN v_var;    
+END total_gpa; 
+
+
+DECLARE
+    v_ans NUMBER;
+    v_ans2 NUMBER;
+BEGIN
+    v_ans:=gpa_on_sem('5A32EA748ECC7AD82077AAF9875135A16AC94F51', 2016, 1);
+    v_ans2:=total_gpa('5A32EA748ECC7AD82077AAF9875135A16AC94F51');
+    DBMS_OUTPUT.PUT_LINE('SPA is ' || v_ans);
+    DBMS_OUTPUT.PUT_LINE('GPA is ' || v_ans2);
+END;
+
+
+--4
+---------------------------------------------------------------
 DECLARE
     v_stud1 VARCHAR(40);
     v_date1 DATE;
@@ -30,6 +290,505 @@ BEGIN
     CLOSE lazy_student;
 END;
 
-select * from course_selection
-where student_id = '96846E26DCEE79A7E263CEC8B08A0217FCE9B1E4'
-order by reg_date;
+--5
+---------------------------------------------------------------
+CREATE OR REPLACE PACKAGE task5
+IS
+    FUNCTION profit_on_retakes_on_sem(
+        p_student_id IN course_selection.student_id%TYPE,
+        p_year IN course_selection.year_of%TYPE,
+        p_term IN course_selection.term_of%TYPE) RETURN NUMBER;
+
+    FUNCTION profit_on_retakes_on_alltime(
+    	p_student_id IN course_selection.student_id%TYPE) RETURN NUMBER;
+END task5;
+
+CREATE OR REPLACE PACKAGE BODY task5
+IS
+    FUNCTION profit_on_retakes_on_sem(p_student_id IN course_selection.student_id%TYPE,
+        p_year IN course_selection.year_of%TYPE,
+        p_term IN course_selection.term_of%TYPE) RETURN NUMBER 
+    IS
+        v_sum NUMBER :=0;
+        v_amount NUMBER := 0;
+    BEGIN
+    	SELECT SUM(b.credits*25000) INTO v_amount FROM course_selection a
+        INNER JOIN course_sections b ON a.ders_code = b.ders_code
+        AND a.year_of = b.year_of
+        AND a.term_of = b.term_of
+        AND a.section = b.section
+        WHERE a.student_id = p_student_id
+            AND a.year_of = p_year
+            AND a.term_of = p_term
+            AND (a.qiymet_harf='F' OR a.qiymet_harf='NP');
+            
+        v_sum:=v_sum+v_amount;
+        
+        SELECT count(*)*25000 INTO v_amount FROM course_selection a
+        INNER JOIN course_sections b ON a.ders_code = b.ders_code
+        AND a.year_of = b.year_of
+        AND a.term_of = b.term_of
+        AND a.section = b.section
+        WHERE a.student_id = p_student_id
+            AND a.year_of = p_year
+            AND a.term_of = p_term
+            AND a.qiymet_harf='FX';
+        
+        v_sum:=v_sum+v_amount;
+        RETURN v_sum;
+    END profit_on_retakes_on_sem;
+    
+    FUNCTION profit_on_retakes_on_alltime(
+    	p_student_id IN course_selection.student_id%TYPE) RETURN NUMBER
+    IS
+    	v_sum NUMBER := 0;
+        v_amount NUMBER := 0;
+    BEGIN
+    	SELECT SUM(b.credits*25000) INTO v_amount FROM course_selection a
+        INNER JOIN course_sections b ON a.ders_code = b.ders_code
+        AND a.year_of = b.year_of
+        AND a.term_of = b.term_of
+        AND a.section = b.section
+        WHERE a.student_id = p_student_id
+            AND (a.qiymet_harf='F' OR a.qiymet_harf='NP');
+            
+        v_sum:=v_sum+v_amount;
+        
+        SELECT count(*)*25000 INTO v_amount FROM course_selection a
+        INNER JOIN course_sections b ON a.ders_code = b.ders_code
+        AND a.year_of = b.year_of
+        AND a.term_of = b.term_of
+        AND a.section = b.section
+        WHERE a.student_id = p_student_id
+            AND a.qiymet_harf='FX';
+        
+        v_sum:=v_sum+v_amount;
+        RETURN v_sum;
+    END profit_on_retakes_on_alltime;
+    
+END task5;
+
+
+DECLARE
+    v_student_id VARCHAR(40);
+    v_year NUMBER;
+    v_term NUMBER;
+BEGIN
+    v_student_id := '5A32EA748ECC7AD82077AAF9875135A16AC94F51';
+    v_year := 2016;
+    v_term := 2;
+    DBMS_OUTPUT.PUT_LINE('He/She payed ' || task5.profit_on_retakes_on_sem(v_student_id, v_year, v_term) || ' Tenges in that semester');
+    DBMS_OUTPUT.PUT_LINE('He/She payed ' || task5.profit_on_retakes_on_alltime(v_student_id) || ' beginning with his/her studying time');
+END;   
+
+--6
+---------------------------------------------------------------
+CREATE OR REPLACE PACKAGE task6
+IS
+    FUNCTION teachers_loading(p_emp_id IN course_sections.emp_id%TYPE, 
+    p_year IN course_sections.year_of%TYPE,
+    p_term IN course_sections.term_of%TYPE) RETURN NUMBER;
+END task6;
+
+CREATE OR REPLACE PACKAGE BODY task6
+IS
+    FUNCTION teachers_loading(
+        p_emp_id IN course_sections.emp_id%TYPE, 
+        p_year IN course_sections.year_of%TYPE,
+        p_term IN course_sections.term_of%TYPE) 
+        RETURN NUMBER 
+        IS
+            v_amount NUMBER;
+        BEGIN
+            SELECT SUM(hour_num) INTO v_amount FROM course_sections
+                WHERE emp_id = p_emp_id AND year_of = p_year AND term_of = p_term;
+            RETURN v_amount;
+        END teachers_loading;
+END task6;
+
+DECLARE
+	v_var NUMBER;
+BEGIN
+	v_var := task6.teachers_loading(10009, 2016, 1);
+	DBMS_OUTPUT.PUT_LINE(v_var);
+END;
+
+--7
+---------------------------------------------------------------
+DECLARE
+	v_emp_id NUMBER;
+	v_year NUMBER;
+	v_term NUMBER;
+
+	v_start_time DATE;
+	v_ders_code VARCHAR(7);
+
+	v_i NUMBER := 1;
+
+	CURSOR teachers_schedule(
+		p_emp_id IN course_sections.emp_id%TYPE,
+		p_year IN course_sections.year_of%TYPE,
+		p_term IN course_sections.term_of%TYPE,
+		p_day IN NUMBER) IS
+			SELECT a.ders_code, b.start_time FROM course_sections a
+				INNER JOIN course_schedule b ON a.ders_code = b.ders_code
+				AND a.year_of = b.year_of
+				AND a.term_of = b.term_of
+				AND a.section = b.section
+				WHERE a.year_of = p_year AND p_emp_id = a.emp_id AND a.term_of = p_term AND TO_CHAR(b.start_time,'d')=p_day
+				ORDER BY a.emp_id, b.start_time;
+
+BEGIN
+	v_emp_id := 10009;
+	v_year := 2016;
+	v_term := 1;
+	
+	WHILE(v_i<7)
+	LOOP
+		IF (v_i = 1)
+			THEN 
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------MONDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 2)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------TUESDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 3)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------WEDNESDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 4)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------THURSDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 5)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------FRIDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSE
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------SATURDAY---------');
+				OPEN teachers_schedule(v_emp_id, v_year, v_term, v_i);
+				LOOP
+					FETCH teachers_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN teachers_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE teachers_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+        END IF;
+        v_i := v_i + 1;
+	END LOOP;
+END;
+--8
+---------------------------------------------------------------
+DECLARE
+	v_student_id VARCHAR(40);
+	v_year NUMBER;
+	v_term NUMBER;
+
+	v_start_time DATE;
+	v_ders_code VARCHAR(7);
+
+	v_i NUMBER := 1;
+
+	CURSOR students_schedule(
+		p_student_id IN course_selection.student_id%TYPE,
+		p_year IN course_selection.year_of%TYPE,
+		p_term IN course_selection.term_of%TYPE,
+		p_day IN NUMBER) IS
+			SELECT a.ders_code, b.start_time FROM course_selection a
+				INNER JOIN course_schedule b ON a.ders_code = b.ders_code
+				AND a.year_of = b.year_of
+				AND a.term_of = b.term_of
+				AND a.section = b.section
+				WHERE a.year_of = p_year AND a.student_id = p_student_id AND a.term_of = p_term AND TO_CHAR(b.start_time,'d')=p_day
+				ORDER BY b.start_time;
+
+BEGIN
+	v_student_id := '5A32EA748ECC7AD82077AAF9875135A16AC94F51';
+	v_year := 2016;
+	v_term := 1;
+	
+	WHILE(v_i<7)
+	LOOP
+		IF (v_i = 1)
+			THEN 
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------MONDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 2)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------TUESDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 3)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------WEDNESDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 4)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------THURSDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSIF (v_i = 5)
+			THEN
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------FRIDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+		ELSE
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('----------SATURDAY---------');
+				OPEN students_schedule(v_student_id, v_year, v_term, v_i);
+				LOOP
+					FETCH students_schedule INTO v_ders_code, v_start_time;
+						EXIT WHEN students_schedule%NOTFOUND;
+						DBMS_OUTPUT.PUT_LINE(v_ders_code || ' - ' || TO_CHAR(v_start_time, 'hh24:mi'));
+				END LOOP;
+				CLOSE students_schedule;
+				DBMS_OUTPUT.PUT_LINE('-------------------------');
+				DBMS_OUTPUT.PUT_LINE('                         ');
+        END IF;
+        v_i := v_i + 1;
+	END LOOP;
+END;
+
+--9A
+---------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE how_many_subjects_and_credits(p_student_id IN course_selection.student_id%TYPE)
+IS 
+    v_count_sub NUMBER;
+    v_count_credits NUMBER;
+BEGIN
+    SELECT COUNT(*), SUM(b.credits) INTO v_count_sub, v_count_credits  FROM course_selection a
+    INNER JOIN course_sections b ON a.ders_code = b.ders_code
+        AND a.year_of = b.year_of
+        AND a.term_of = b.term_of
+        AND a.section = b.section
+        WHERE a.student_id = p_student_id;
+        
+    DBMS_OUTPUT.PUT_LINE('The student with ID = '||p_student_id || ' took ' || v_count_sub || ' and this is ' || v_count_credits || ' credits' );
+END how_many_subjects_and_credits;
+
+--9B
+DECLARE
+    CURSOR cur_num_sub_and_cred(p_student_id course_selection.student_id%TYPE) IS
+        SELECT a.year_of, a.term_of, COUNT(*) AS NUMBER_OF_SUBJECTS, SUM(b.credits) AS AMOUNT_OF_CREDITS FROM course_selection a
+        INNER JOIN course_sections b ON a.ders_code = b.ders_code
+            AND a.year_of = b.year_of
+            AND a.term_of = b.term_of
+            AND a.section = b.section
+            WHERE a.student_id = p_student_id
+            GROUP BY a.year_of, a.term_of
+            ORDER BY a.year_of, a.term_of ASC;
+    
+    v_cred NUMBER;
+    v_sub NUMBER;
+    v_year NUMBER;
+    v_term NUMBER;
+    
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('||| year ||| term ||| number_of_subjects_taken ||| amount_of_credits |||');
+    OPEN cur_num_sub_and_cred('AF9EEE6031F127E1C516E394D1F651E20BD98C1E');
+    LOOP
+    FETCH cur_num_sub_and_cred INTO v_year, v_term, v_sub, v_cred;
+        EXIT WHEN cur_num_sub_and_cred%NOTFOUND;
+        IF v_sub > 9
+            THEN DBMS_OUTPUT.PUT_LINE('||| ' || v_year || ' |||   ' || v_term || '  |||            ' || v_sub || '            |||        ' || v_cred || '     |||');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('||| ' || v_year || ' |||   ' || v_term || '  |||            ' || v_sub || '             |||        ' || v_cred || '     |||');
+        END IF;
+    END LOOP;
+    CLOSE cur_num_sub_and_cred;
+END;
+
+--10
+---------------------------------------------------------------
+DECLARE
+    v_ders_code course_sections.ders_code%TYPE;
+    v_emp_id course_sections.emp_id%TYPE;
+    v_year course_sections.year_of%TYPE;
+    v_term course_sections.term_of%TYPE;
+    v_count NUMBER;
+    v_avg NUMBER;
+    v_ratio NUMBER;
+
+
+    CURSOR most_clever_flow IS
+    	SELECT a.ders_code, a.emp_id, a.year_of, a.term_of, count(*), AVG(b.qiymet_yuz),count(*)/avg(qiymet_yuz+1) FROM course_sections a
+		INNER JOIN course_selection b ON a.ders_code = b.ders_code
+		AND a.year_of = b.year_of
+		AND a.term_of = b.term_of
+		AND a.section = b.section
+		GROUP BY a.ders_code, a.emp_id, a.year_of, a.term_of
+		ORDER BY ratio DESC;
+
+BEGIN
+	OPEN most_clever_flow;
+	LOOP
+	FETCH most_clever_flow INTO v_ders_code, v_emp_id, v_year, v_term, v_count, v_avg, v_ratio;
+		EXIT WHEN most_clever_flow%NOTFOUND;
+        IF v_avg = 0 OR v_avg IS NULL
+            THEN v_ratio:=v_ratio;
+        ELSE
+            DBMS_OUTPUT.PUT_LINE(v_ders_code || ' ' || v_emp_id || ' ' || v_year || ' ' || v_term);
+        END IF;
+	END LOOP;
+	CLOSE most_clever_flow;
+END;
+
+--11
+---------------------------------------------------------------
+DECLARE
+    v_emp_id NUMBER;
+    v_count NUMBER;
+
+    CURSOR cur_rating_emp(
+        p_year NUMBER,
+        p_term NUMBER) IS
+            SELECT b.emp_id, count(*) as COUNT_OF_STUDENTS FROM course_selection a
+            INNER JOIN course_sections b ON a.ders_code = b.ders_code
+                AND a.year_of = b.year_of
+                AND a.term_of = b.term_of
+                AND a.section = b.section
+            WHERE a.year_of = p_year AND a.term_of = p_term
+            GROUP BY b.emp_id, a.year_of, a.term_of
+            ORDER BY COUNT_OF_STUDENTS DESC;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('||| Teacher ID ||| Number of students |||');
+    OPEN cur_rating_emp(2018, 1);
+    LOOP
+    FETCH cur_rating_emp INTO v_emp_id, v_count;
+        EXIT WHEN cur_rating_emp%NOTFOUND;
+        
+        DBMS_OUTPUT.PUT_LINE('|||    '||v_emp_id || '   |||         ' || v_count || '       |||');
+        
+    END LOOP;
+    CLOSE cur_rating_emp;
+END; 
+
+--12
+---------------------------------------------------------------
+DECLARE
+    v_ders_code VARCHAR(7);
+    v_count NUMBER;
+
+    CURSOR cur_rating_ders(
+        p_year NUMBER,
+        p_term NUMBER) IS
+            SELECT a.ders_code, count(*) as COUNT_OF_STUDENTS FROM course_selection a
+            INNER JOIN course_sections b ON a.ders_code = b.ders_code
+                AND a.year_of = b.year_of
+                AND a.term_of = b.term_of
+                AND a.section = b.section
+            WHERE a.year_of = p_year AND a.term_of = p_term
+            GROUP BY a.ders_code
+            ORDER BY COUNT_OF_STUDENTS DESC;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('|||  Ders Code  ||| Number of students |||');
+    OPEN cur_rating_ders(2018, 1);
+    LOOP
+    FETCH cur_rating_ders INTO v_ders_code, v_count;
+        EXIT WHEN cur_rating_ders%NOTFOUND;
+        
+        DBMS_OUTPUT.PUT_LINE('|||    '||v_ders_code || '  |||        ' || v_count || '        |||');
+        
+    END LOOP;
+    CLOSE cur_rating_ders;
+END; 
+
+--13
+SELECT COUNT(*) AS NUMBER_OF_RETAKES, SUM(b.credits * 25000)||' Tenge' AS PROFIT FROM course_selection a
+INNER JOIN course_sections b ON a.ders_code = b.ders_code
+AND a.year_of = b.year_of
+AND a.term_of = b.term_of
+AND a.section = b.section
+WHERE ((a.qiymet_harf = 'FX' OR a.qiymet_harf = 'F') AND a.qiymet_yuz < 50) or qiymet_harf = 'NP';
+---------------------------------------------------------------
